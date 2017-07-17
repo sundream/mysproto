@@ -96,13 +96,14 @@ get 1 {
 
 ## Benchmark
 In my i5-3210 @2.5GHz CPU, the benchmark is below:
-library         | encode 1M times | decode 1M times | size
-----------------| --------------- | --------------- | ----
-sproto(nopack)  | 9.193s          | 9.963s          | 130 bytes
-sproto          | 10.000s         | 10.411s         | 83 bytes
+
+|library         | encode 1M times | decode 1M times | size
+|----------------| --------------- | --------------- | ----
+|sproto(nopack)  | 9.193s          | 9.963s          | 130 bytes
+|sproto          | 10.000s         | 10.411s         | 83 bytes
 
 ## See Also
-[sproto](https://github.com/cloudwu/sproto)
-[sproto-cs](https://github.com/jintiao/sproto-cs)
-[sproto-Csharp](https://github.com/lvzixun/sproto-Csharp)
-[sprotoparser](https://github.com/spin6lock/yapsp)
+* [sproto](https://github.com/cloudwu/sproto)
+* [sproto-cs](https://github.com/jintiao/sproto-cs)
+* [sproto-Csharp](https://github.com/lvzixun/sproto-Csharp)
+* [sprotoparser](https://github.com/spin6lock/yapsp)
