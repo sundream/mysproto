@@ -26,7 +26,7 @@ namespace Sproto {
 			get {return this.buffer.Length;}
 		}
 
-		private void _expand (int size) {
+		public void Expand (int size) {
 			if (this.Capcity - this.pos < size) {
 				int old_capcity = this.Capcity;
 				int capcity = this.Capcity;
@@ -50,12 +50,12 @@ namespace Sproto {
 		}
 
 		public void WriteByte (byte b) {
-			this._expand(sizeof(byte));
+			this.Expand(sizeof(byte));
 			this._WriteByte(b);
 		}
 
 		public void Write (byte[] data,int offset,int length) {
-			this._expand(length);
+			this.Expand(length);
 			for (int i = 0; i < length; i++) {
 				byte b = data[offset + i];
 				this._WriteByte(b);
@@ -81,7 +81,7 @@ namespace Sproto {
 					SprotoHelper.Error("[Sproto.Stream.Seek] invalid whence:{0}",whence);
 					break;
 			}
-			this._expand(0);
+			this.Expand(0);
 			return this.pos;
 		}
 

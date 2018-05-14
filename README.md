@@ -17,7 +17,7 @@ using Sproto;
 namespace TestSproto {
 	public static class SimpleExample {
 		public static void Run () {
-			string server_proto_str =
+			string c2s =
 @"
 .package {
 	type 0 : integer
@@ -34,6 +34,7 @@ namespace TestSproto {
 	luckydays 6 : *integer  # integer list
 }
 
+
 get 1 {
 	request {
 		id 0 : integer
@@ -41,24 +42,26 @@ get 1 {
 	response Person
 }
 ";
-			string client_proto_str =
+			string s2c =
 @"
 .package {
 	type 0 : integer
 	session 1 : integer
 }
 ";
-			SprotoMgr client_proto = SprotoParser.Parse(client_proto_str);
-			SprotoMgr server_proto = SprotoParser.Parse(server_proto_str);
-			SprotoRpc client = client_proto.Attach(server_proto);
-			SprotoRpc server = server_proto.Attach(client_proto);
+			SprotoMgr S2C = SprotoParser.Parse(s2c);
+			SprotoMgr C2S = SprotoParser.Parse(c2s);
+			SprotoRpc Client = new SprotoRpc(S2C,C2S);
+			SprotoRpc Server = new SprotoRpc(C2S,S2C);
 			// create a request
-			SprotoObject request = server_proto.NewSprotoObject("get.request");
+			SprotoObject request = Client.C2S.NewSprotoObject("get.request");
 			request["id"] = 1;
-			RpcPackage request_package = client.Request("get",request,1);
-			RpcInfo rpcinfo = server.Dispatch(request_package.data,request_package.size);
+			RpcPackage request_package = Client.PackRequest("get",request,1);
+
+			RpcMessage message = Server.UnpackMessage(request_package.data,request_package.size);
 			// create a response
-			SprotoObject response = server_proto.NewSprotoObject("Person");
+			//SprotoObject response = Client.C2S.NewSprotoObject("Person");
+			SprotoObject response = Server.S2C.NewSprotoObject("Person");
 			response["id"] = 1;
 			response["name"] = "sundream";
 			response["age"] = 26;
@@ -69,10 +72,10 @@ get 1 {
 			// no children
 			//response["children"] = children;
 			response["luckydays"] = new List<Int64>{0,6};
-			RpcPackage response_package = server.Response("get",response,1);
-			rpcinfo = client.Dispatch(response_package.data,response_package.size);
-			Console.WriteLine("proto={0},tag={1},session={2},type={3},request={4},response={5}",
-					rpcinfo.proto,rpcinfo.tag,rpcinfo.session,rpcinfo.type,rpcinfo.request,rpcinfo.response);
+			RpcPackage response_package = Server.PackResponse("get",response,1);
+			message = Client.UnpackMessage(response_package.data,response_package.size);
+			Console.WriteLine("proto={0},tag={1},ud={2},session={3},type={4},request={5},response={6}",
+					message.proto,message.tag,message.ud,message.session,message.type,message.request,message.response);
 
 		}
 	}
@@ -88,10 +91,11 @@ get 1 {
 * `SprotoObject SprotoMgr.Decode(string typename,SprotoStream reader)` decode to a SprotoObject
 * `byte[] SprotoMgr.Pack(byte[] src,int start,int length,out int size,byte[] dest=null)` 0-pack a byte-buffer
 * `byte[] SprotoMgr.Unpack(byte[] src,int start,int length,out int size,byte[] dest=null)` 0-unpack a byte-buffer
-* `SprotoRpc SprotoMgr.Attach(SprotoMgr server)` create a SprotoRpc by a client sprotomgr attach a server sprotomgr
+* `SprotoRpc SprotoRpc(SprotoMgr S2C,SprotoMgr C2S,string package="package")` create a SprotoRpc by a S2C sprotomgr and a C2S sprotomgr
 * `RpcPackage SprotoRpc.Request(string proto,SprotoObject request=null,Int64 session=0)` create a request package
 * `RpcPackage SprotoRpc.Response(string proto,SprotoObject response=null,Int64 session=0)` create a response package
-* `RpcInfo SprotoRpc.Dispatch(byte[] bytes,int size)` dispatch a request/response package
+* `RpcPackage SprotoRpc.PackMessage(RpcMessage message)` pack request/response message to package
+* `RpcMessage SprotoRpc.UnPackMessage(byte[] bytes,int size)` unpack to a message,may request/response
 
 ## Benchmark
 In my i5-3210 @2.5GHz CPU, the benchmark is below:
@@ -100,6 +104,14 @@ In my i5-3210 @2.5GHz CPU, the benchmark is below:
 |----------------| --------------- | --------------- | ----
 |sproto(nopack)  | 9.193s          | 9.963s          | 130 bytes
 |sproto          | 10.000s         | 10.411s         | 83 bytes
+
+##Run
+```
+i test in ubuntu/mac
+1. compile: mcs *.cs Test/*.cs
+2. run: ls *.exe | xargs mono
+if you want to use in unity,see [TcpClientSocket](https://github.com/sundream/TcpClientSocket)
+```
 
 ## See Also
 * [sproto](https://github.com/cloudwu/sproto)

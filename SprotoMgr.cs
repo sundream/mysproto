@@ -69,7 +69,7 @@ namespace Sproto {
 			List<string> list = new List<string>(ptype.Split('.'));
 			list.RemoveAt(list.Count-1);
 			if (list.Count > 0) {
-				string pptype = String.Join(".",list);
+				string pptype = String.Join(".",list.ToArray());
 				return this.check_type(pptype,fieldtype);
 			} else if (this.GetType(fieldtype) != null) {
 				return fieldtype;
@@ -160,7 +160,7 @@ namespace Sproto {
 				string fmt = "name={0},tag={1},request={2},response={3}";
 				list.Add(String.Format(fmt,protocol.name,protocol.tag,protocol.request,protocol.response));
 			}
-			return String.Join("\n",list);
+			return String.Join("\n",list.ToArray());
 		}
 
 		private string dump_types (Dictionary<string,SprotoType> types,int level=1) {
@@ -178,7 +178,7 @@ namespace Sproto {
 				list.Add(space + dump_types(type.nest_types,level+1));
 				*/
 			}
-			return String.Join("\n",list);
+			return String.Join("\n",list.ToArray());
 		}
 
 		public SprotoObject NewSprotoObject(string typename,object val=null) {
@@ -220,8 +220,8 @@ namespace Sproto {
 			return this.Decode(typename,reader);
 		}
 
-		public SprotoRpc Attach (SprotoMgr server_proto) {
-			return new SprotoRpc(this,server_proto);
+		public SprotoRpc Attach (SprotoMgr EndPoint2Me) {
+			return new SprotoRpc(this,EndPoint2Me);
 		}
 	}
 }

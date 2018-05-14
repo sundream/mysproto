@@ -64,7 +64,7 @@ namespace Sproto {
 							if (field.digit == 0) {
 								integer = (Int64)fieldobj.val;
 							} else {
-								integer = (Int64)((double)fieldobj.val * MathPow(10,field.digit) + 0.5);
+								integer = (Int64)(Math.Round((double)fieldobj.val * MathPow(10,field.digit)));
 							}
 							if (this.IsSmallInteger(integer)) {
 								encode_in_header = true;
@@ -153,11 +153,11 @@ namespace Sproto {
 							}
 						} else if (field.type == "boolean") {
 							if (!(val == 0 || val == 1))
-								SprotoHelper.Error("[SprotoCodec.DecodeSprotoObject] boolean type expect value '0/1' got '{0}'",val);
+								SprotoHelper.Error("[SprotoCodec.DecodeSprotoObject] type={0},field={1},boolean type expect value '0/1' got '{2}'",type.name,curtag,val);
 							bool ok = (val == 0) ? false : true;
 							obj.Set(field.name,ok);
 						} else {
-							SprotoHelper.Error("[SprotoCodec.DecodeSprotoObject] expect type 'integer/boolean' got '{0}'",field.type);
+							SprotoHelper.Error("[SprotoCodec.DecodeSprotoObject] type={0},field={1},expect type 'integer/boolean' got '{2}'",type.name,curtag,field.type);
 						}
 					}
 					curtag++;
@@ -167,7 +167,6 @@ namespace Sproto {
 			}
 			// decode data part
 			foreach (UInt16 tag in data_tags) {
-				UInt32 fieldsize = this.PeekUInt32(reader);
 				SprotoField field = type.GetField(tag);
 				if (field != null) {
 					object fieldobj = null;
@@ -192,12 +191,14 @@ namespace Sproto {
 								fieldobj = this.DecodeSprotoObjectList(sprotomgr,fieldtype,reader);
 							}
 						} else {
+							this.ReadUInt32(reader);
 							fieldobj = this.DecodeSprotoObject(sprotomgr,fieldtype,reader);
 						}
 					}
 					obj.Set(field.name,fieldobj);
 				} else {
 					// for protocol version compatibility
+					UInt32 fieldsize = this.ReadUInt32(reader);
 					this.IgnoreByte(reader,fieldsize);
 				}
 			}
@@ -279,7 +280,6 @@ namespace Sproto {
 			return number;
 		}
 
-
 		private UInt32 EncodeBuildInType(SprotoField field,SprotoObject fieldobj,SprotoStream writer) {
 			UInt32 size = 0;
 			switch (field.type) {
@@ -291,7 +291,7 @@ namespace Sproto {
 						} else {
 							List<double> double_list = fieldobj.val as List<double>;
 							List<Int64> list = new List<Int64>();
-							double_list.ForEach(v => list.Add((Int64)(v*MathPow(10,field.digit)+0.5)));
+							double_list.ForEach(v => list.Add((Int64)(Math.Round(v*MathPow(10,field.digit)))));
 							size = this.EncodeIntegerList(list,writer);
 						}
 					} else {
@@ -299,7 +299,7 @@ namespace Sproto {
 						if (field.digit == 0) {
 							val = (Int64)fieldobj.val;
 						} else {
-							val = (Int64)((double)fieldobj.val * MathPow(10,field.digit) + 0.5);
+							val = (Int64)(Math.Round((double)fieldobj.val * MathPow(10,field.digit)));
 						}
 						size = this.EncodeInteger(val,writer);
 					}
@@ -561,22 +561,12 @@ namespace Sproto {
 			return obj;
 		}
 
-		private Int64 ConvertUInt32ToInt64(UInt32 number) {
-			Int64 integer;
-			if ((number & 0x80000000) != 0) {
-				integer = (0xffffffff << 32) | number;
-			} else {
-				integer = (0x00000000 << 32) | number;
-			}
-			return integer;
-		}
-
 		private Int64 DecodeInteger (SprotoStream reader) {
 			UInt32 sizeof_integer = this.ReadUInt32(reader);
 			Int64 integer;
 			if (sizeof_integer == 4) {
-				UInt32 number = this.ReadUInt32(reader);
-				integer = this.ConvertUInt32ToInt64(number);
+				Int32 number = (Int32)this.ReadUInt32(reader);
+				integer = (Int64)number;
 			} else {
 				if (sizeof_integer != 8)
 					SprotoHelper.Error("[SprotoCodec.DecodeInteger] invalid integer size '{0}'",sizeof_integer);
@@ -605,13 +595,16 @@ namespace Sproto {
 		private List<Int64> DecodeIntegerList (SprotoStream reader) {
 			List<Int64> list = new List<Int64>();
 			UInt32 size = this.ReadUInt32(reader);
+			if (size == 0) {
+				return list;
+			}
 			UInt32 sizeof_integer = (UInt32)reader.ReadByte();
 			size--;
 			for (; size > 0; size=size-sizeof_integer) {
 				Int64 integer;
 				if (sizeof_integer == sizeof(UInt32)) {
-					UInt32 number = this.ReadUInt32(reader);
-					integer = this.ConvertUInt32ToInt64(number);
+					Int32 number = (Int32)this.ReadUInt32(reader);
+					integer = (Int64)number;
 				} else {
 					integer = (Int64)this.ReadUInt64(reader);
 				}

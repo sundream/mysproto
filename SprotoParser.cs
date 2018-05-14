@@ -53,8 +53,12 @@ namespace Sproto {
 			this.init();
 		}
 		
-		public string error_pos (int line,int column) {
-			return String.Format("{0}({1}:{2}): ",this.filename,line,column);
+		public string error_pos (int line,int column,SprotoType type=null) {
+			string str = String.Format("{0}({1}:{2}): ",this.filename,line,column);
+			if (type != null) {
+				str = str + String.Format("type={0}: ", type.name);
+			}
+			return str;
 		}
 		public delegate bool FuncCharIn (char c);
 		public bool isalpha (char c) {
@@ -92,7 +96,7 @@ namespace Sproto {
 				pos++;
 				chars.Add(c);
 			}
-			return String.Concat(chars);
+			return new string (chars.ToArray ());
 		}
 
 		public string readutil (FuncCharIn stop) {
@@ -104,7 +108,7 @@ namespace Sproto {
 				this.readchar();
 				chars.Add(c);
 			}
-			return String.Concat(chars);
+			return new string (chars.ToArray ());
 		}
 		/*
 		public void seek (int pos) {
@@ -331,14 +335,14 @@ namespace Sproto {
 					SprotoType nest_type = parse_type(lexer);
 					type.AddType(nest_type);
 				} else {
-					type.AddField(parse_field(lexer));
+					type.AddField(parse_field(lexer,type));
 				}
 			}
 			expect(lexer,"block_end","space|eof");
 			return type;
 		}
 
-		private static SprotoField parse_field (Lexer lexer) {
+		private static SprotoField parse_field (Lexer lexer,SprotoType type) {
 			SprotoField field = new SprotoField();
 			Token token = expect(lexer,"word","space");
 			field.name = token.val;
@@ -347,7 +351,7 @@ namespace Sproto {
 			ignore(lexer,"space");
 			field.tag = Convert.ToUInt16(token.val);
 			if (field.tag >= SprotoParser.MAX_FIELD_TAG)
-				SprotoHelper.Error(lexer.error_pos(token.line,token.column) + "{0} field's tag {1} >= {2}",field.name,field.tag,SprotoParser.MAX_FIELD_TAG);
+				SprotoHelper.Error(lexer.error_pos(token.line,token.column,type) + "{0} field's tag {1} >= {2}",field.name,field.tag,SprotoParser.MAX_FIELD_TAG);
 			expect(lexer,"colon","space");
 			token = optional(lexer,"star");
 			if (token != null) {
@@ -358,20 +362,19 @@ namespace Sproto {
 			string fieldtype = field.type;
 			token = optional(lexer,"key_start");
 			if (token != null) {
-				// allow filed tag : type(space+key+space)
+				// allow field tag : type(space+key+space)
 				ignore(lexer,"space");
 				token = expect(lexer,"word|tag");
 				if ("tag" == token.type) {
-					if (!SprotoHelper.IsBuildInType(fieldtype))
-						SprotoHelper.Error(lexer.error_pos(token.line,token.column) + "map index expect 'word' got '{0}'",token.val);
 					if (fieldtype != "integer")
-						SprotoHelper.Error(lexer.error_pos(token.line,token.column) + "decimal's type expect 'integer' got '{0}'",fieldtype);
+						SprotoHelper.Error(lexer.error_pos(token.line,token.column,type) + "decimal index expect 'integer' got '{0}'",fieldtype);
 					field.digit = Convert.ToUInt16(token.val);
 					if (field.digit > SprotoParser.MAX_DECIMAL)
-						SprotoHelper.Error(lexer.error_pos(token.line,token.column) + "decimal {0} > {1}",field.digit,SprotoParser.MAX_DECIMAL);
+						SprotoHelper.Error(lexer.error_pos(token.line,token.column,type) + "decimal index {0} > {1}",field.digit,SprotoParser.MAX_DECIMAL);
 				} else {
-					if (SprotoHelper.IsBuildInType(fieldtype))
-						SprotoHelper.Error(lexer.error_pos(token.line,token.column) + "decimal expect 'integer' got '{0}'",token.val);
+					if (SprotoHelper.IsBuildInType (fieldtype)) {
+						SprotoHelper.Error(lexer.error_pos(token.line,token.column,type) + "map index expect 'usertype' got '{0}'",fieldtype);
+					}
 					field.key = token.val;
 				}
 				ignore(lexer,"space");

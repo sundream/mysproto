@@ -6,7 +6,7 @@ using Sproto;
 namespace TestSproto {
 	public static class SimpleExample {
 		public static void Run () {
-			string server_proto_str =
+			string c2s =
 @"
 .package {
 	type 0 : integer
@@ -31,24 +31,26 @@ get 1 {
 	response Person
 }
 ";
-			string client_proto_str =
+			string s2c =
 @"
 .package {
 	type 0 : integer
 	session 1 : integer
 }
 ";
-			SprotoMgr client_proto = SprotoParser.Parse(client_proto_str);
-			SprotoMgr server_proto = SprotoParser.Parse(server_proto_str);
-			SprotoRpc client = client_proto.Attach(server_proto);
-			SprotoRpc server = server_proto.Attach(client_proto);
+			SprotoMgr S2C = SprotoParser.Parse(s2c);
+			SprotoMgr C2S = SprotoParser.Parse(c2s);
+			SprotoRpc Client = new SprotoRpc(S2C,C2S);
+			SprotoRpc Server = new SprotoRpc(C2S,S2C);
 			// create a request
-			SprotoObject request = server_proto.NewSprotoObject("get.request");
+			SprotoObject request = Client.C2S.NewSprotoObject("get.request");
 			request["id"] = 1;
-			RpcPackage request_package = client.Request("get",request,1);
-			RpcInfo rpcinfo = server.Dispatch(request_package.data,request_package.size);
+			RpcPackage request_package = Client.PackRequest("get",request,1);
+
+			RpcMessage message = Server.UnpackMessage(request_package.data,request_package.size);
 			// create a response
-			SprotoObject response = server_proto.NewSprotoObject("Person");
+			//SprotoObject response = Client.C2S.NewSprotoObject("Person");
+			SprotoObject response = Server.S2C.NewSprotoObject("Person");
 			response["id"] = 1;
 			response["name"] = "sundream";
 			response["age"] = 26;
@@ -59,10 +61,10 @@ get 1 {
 			// no children
 			//response["children"] = children;
 			response["luckydays"] = new List<Int64>{0,6};
-			RpcPackage response_package = server.Response("get",response,1);
-			rpcinfo = client.Dispatch(response_package.data,response_package.size);
-			Console.WriteLine("proto={0},tag={1},session={2},type={3},request={4},response={5}",
-					rpcinfo.proto,rpcinfo.tag,rpcinfo.session,rpcinfo.type,rpcinfo.request,rpcinfo.response);
+			RpcPackage response_package = Server.PackResponse("get",response,1);
+			message = Client.UnpackMessage(response_package.data,response_package.size);
+			Console.WriteLine("proto={0},tag={1},ud={2},session={3},type={4},request={5},response={6}",
+					message.proto,message.tag,message.ud,message.session,message.type,message.request,message.response);
 
 		}
 	}

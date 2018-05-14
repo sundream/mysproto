@@ -40,22 +40,5 @@ namespace Sproto {
 			}
 			this.nest_types.Add(name,type);
 		}
-		/*
-		public SprotoType GetType (string name) {
-			List<string> names = new List<string>(name.Split('.'));
-			return this._GetType(this.nest_types,names);
-		}
-
-		public SprotoType _GetType (Dictionary<string,SprotoType> types,List<string> names) {
-			string typename = names[0];
-			names.RemoveAt(0);
-			if (!types.ContainsKey(typename))
-				return null;
-			SprotoType type = types[typename];
-			if (0 == names.Count)
-				return type;
-			return this._GetType(type.nest_types,names);
-		}
-		*/
 	}
 }
