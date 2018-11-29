@@ -32,9 +32,7 @@ namespace TestSproto {
 			SprotoMgr sprotomgr = SprotoParser.Parse(proto);
 			sprotomgr.Dump();
 			string filename = "Test/Person.sproto";
-			List<string> filenames = new List<string>{filename};
-			SprotoMgr sprotomgr2 = SprotoParser.ParseFile(filenames);
-			//or SprotoMgr sprotomgr2 = SprotoParser.ParseFile(filename);
+			SprotoMgr sprotomgr2 = SprotoParser.ParseFile(filename);
 			sprotomgr2.Dump();
 
 			Console.WriteLine("TestAll.Run ok");

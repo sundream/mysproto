@@ -3,11 +3,11 @@ using System.Collections.Generic;
 
 namespace Sproto {
 	public class SprotoMgr {
-		private Dictionary<string,SprotoProtocol> Protocols;
-		private Dictionary<UInt16,SprotoProtocol> TagProtocols;
-		private Dictionary<string,SprotoType> Types;
 		private SprotoCodec Codec;
 		private SprotoPacker Packer;
+		public Dictionary<string,SprotoProtocol> Protocols;
+		public Dictionary<UInt16,SprotoProtocol> TagProtocols;
+		public Dictionary<string,SprotoType> Types;
 
 		public SprotoMgr () {
 			this.Protocols = new Dictionary<string,SprotoProtocol>();

@@ -240,7 +240,7 @@ namespace Sproto {
 		}
 
 		private static void _ParseFile(SprotoMgr sprotomgr,string filename) {
-			FileStream stream = new FileStream(filename,FileMode.Open);
+			FileStream stream = new FileStream(filename,FileMode.Open,FileAccess.Read);
 			StringBuilder sb = new StringBuilder();
 			byte[] buf = new byte[1024];
 			int len = stream.Read(buf,0,buf.Length);
@@ -254,14 +254,8 @@ namespace Sproto {
 		}
 
 		public static SprotoMgr ParseFile(string filename) {
-			return SprotoParser.ParseFile(new List<string>{filename});
-		}
-
-		public static SprotoMgr ParseFile(List<string> filenames) {
 			SprotoMgr sprotomgr = new SprotoMgr();
-			foreach (string filename in filenames) {
-				SprotoParser._ParseFile(sprotomgr,filename);
-			}
+			SprotoParser._ParseFile(sprotomgr,filename);
 			sprotomgr.Check();
 			return sprotomgr;
 		}
@@ -309,7 +303,10 @@ namespace Sproto {
 					SprotoHelper.Error(lexer.error_pos(token.line,token.column) + "{0}: invalid subprotocol:{1}",protocol.name,token.val);
 				}
 			}
-			expect(lexer,"block_end","space|eof");
+			expect(lexer,"block_end");
+			if (lexer.tokens[0].type != "eof") {
+				ignore(lexer,"space");
+			}
 			return protocol;
 		}
 
@@ -338,7 +335,10 @@ namespace Sproto {
 					type.AddField(parse_field(lexer,type));
 				}
 			}
-			expect(lexer,"block_end","space|eof");
+			expect(lexer,"block_end");
+			if (lexer.tokens[0].type != "eof") {
+				ignore(lexer,"space");
+			}
 			return type;
 		}
 
@@ -421,6 +421,227 @@ namespace Sproto {
 					break;
 				}
 			}
+		}
+
+		private static string meta_proto = 
+@".type {
+	.field {
+		name 0 : string
+		buildin	1 :	integer
+		type 2 : integer
+		tag	3 :	integer
+		array 4	: boolean
+		key 5 : integer # If key exists, array must be true, and it's a map.
+	}
+	name 0 : string
+	fields 1 : *field
+}
+
+.protocol {
+	name 0 : string
+	tag	1 :	integer
+	request	2 :	integer	# index
+	response 3 : integer # index
+	confirm 4 : boolean # true means response nil
+}
+
+.group {
+	type 0 : *type
+	protocol 1 : *protocol
+}";
+		private static Dictionary<Int64,string> BuildInTypeId2Name = new Dictionary<Int64,string>{
+			{0,"integer"},
+			{1,"boolean"},
+			{2,"string"},
+		};
+		
+		private static Dictionary<string,Int64> BuildInTypeName2Id = new Dictionary<string,Int64>{
+			{"integer",0},
+			{"boolean",1},
+			{"string",2},
+			{"binary",2},
+		};
+
+		// Parser from binary(*.spb)
+		private static void _ParseFromBinary(SprotoMgr sprotomgr,byte[] bytes, int length) {
+			SprotoMgr meta = SprotoParser.Parse(meta_proto);
+			SprotoStream reader = new SprotoStream();
+			reader.Write(bytes,0,length);
+			reader.Seek(0,SprotoStream.SEEK_BEGIN);
+			SprotoObject group = meta.Decode("group",reader);
+			List<SprotoObject> types = null;
+			List<SprotoObject> protocols = null;
+			if (group.Get("type") != null) {
+				types = group.Get("type");
+				foreach (SprotoObject meta_type in types) {
+					SprotoType type = new SprotoType();
+					type.name = meta_type["name"];
+					if (meta_type.Has("fields")) {
+						List<SprotoObject> fields = meta_type["fields"];
+						foreach (SprotoObject meta_field in fields) {
+							SprotoField field = new SprotoField();
+							field.name = meta_field["name"];
+							field.tag = (UInt16)meta_field["tag"];
+							field.is_array = false;
+							if (meta_field.Has("array")) {
+								field.is_array = (bool)meta_field["array"];
+							}
+							Int64 type_id;
+							if (meta_field.Has("buildin")) {
+								type_id = meta_field["buildin"];
+								field.type = SprotoParser.BuildInTypeId2Name[type_id];
+								if (type_id == 0 && meta_field.Has("type")) {
+									// fixed float
+									field.digit = (UInt16)meta_field["type"];
+								} else if(type_id == 2 && meta_field.Has("type")) {
+									// binary
+									field.type = "binary";
+								}
+							} else {
+								type_id = meta_field["type"];
+								SprotoObject t = types[(int)type_id];
+								field.type = t["name"];
+								// map
+								if (meta_field.Has("key")) {
+									SprotoHelper.Assert(field.is_array);
+									UInt16 map_index = (UInt16)meta_field["key"];
+									List<SprotoObject> t_fields = t["fields"];
+									string name = null;
+									foreach (SprotoObject f in t_fields) {
+										if (f["tag"] == map_index) {
+											name = f["name"];
+											break;
+										}
+									}
+									SprotoHelper.Assert(name != null,String.Format("map index {0} cann't find in type '{1}'",map_index,field.type));
+									field.key = name;
+								}
+							}
+							type.AddField(field);
+						}
+					}
+					sprotomgr.AddType(type);
+				}
+			}
+			if (group.Get("protocol") != null) {
+				protocols = group.Get("protocol");
+				foreach (SprotoObject meta_protocol in protocols) {
+					SprotoProtocol protocol = new SprotoProtocol();
+					protocol.name = meta_protocol["name"];
+					protocol.tag = (UInt16)meta_protocol["tag"];
+					if (meta_protocol["request"] != null) {
+						Int64 request = meta_protocol["request"];
+						protocol.request = types[(int)request]["name"];
+					}
+					if (meta_protocol["response"] != null) {
+						Int64 response = meta_protocol["response"];
+						protocol.response = types[(int)response]["name"];
+					}
+					bool confirm = meta_protocol["confirm"];
+					if (confirm) {
+						protocol.response = null;
+					}
+					sprotomgr.AddProtocol(protocol);
+				}
+			}
+		}
+
+		public static SprotoMgr ParseFromBinary(byte[] bytes,int length) {
+			SprotoMgr sprotomgr = new SprotoMgr();
+			SprotoParser._ParseFromBinary(sprotomgr,bytes,length);
+			sprotomgr.Check();
+			return sprotomgr;
+		}
+
+		public static SprotoMgr ParseFromBinaryFile(string filename) {
+			FileStream stream = new FileStream(filename,FileMode.Open,FileAccess.Read);
+			MemoryStream ms = new MemoryStream();
+			stream.CopyTo(ms);
+			byte[] bytes = ms.GetBuffer();
+			int length = (int)ms.Length;
+			stream.Close();
+			return SprotoParser.ParseFromBinary(bytes,length);
+		}
+
+		public static byte[] DumpToBinary(SprotoMgr sprotomgr) {
+			SprotoMgr meta = SprotoParser.Parse(meta_proto);
+			SprotoObject group = meta.NewSprotoObject("group");
+			// make result stable
+			List<SprotoType> types = new List<SprotoType>(sprotomgr.Types.Values);
+			types.Sort(delegate(SprotoType lhs, SprotoType rhs) {
+				return string.Compare(lhs.name,rhs.name);
+			});
+			if (sprotomgr.Types.Count != 0) {
+				List<SprotoObject> meta_types = new List<SprotoObject>();
+				foreach (SprotoType type in types) {
+					SprotoObject meta_type = meta.NewSprotoObject("type");
+					meta_type["name"] = type.name;
+					if (type.fields.Count != 0) {
+						List<SprotoField> fields = new List<SprotoField>(type.fields.Values);
+						fields.Sort(delegate(SprotoField lhs,SprotoField rhs) {
+							return lhs.tag < rhs.tag ? -1 : 1;
+						});
+						List<SprotoObject> meta_fields = new List<SprotoObject>();
+						foreach(SprotoField field in fields) {
+							SprotoObject meta_field = meta.NewSprotoObject("type.field");
+							meta_field["name"] = field.name;
+							meta_field["tag"] = field.tag;
+							if (SprotoParser.BuildInTypeName2Id.ContainsKey(field.type)) {
+								meta_field["buildin"] = SprotoParser.BuildInTypeName2Id[field.type];
+								if (field.type == "binary") {
+									meta_field["type"] = 1;
+								} else if (field.type == "integer" && field.digit > 0) {
+									meta_field["type"] = field.digit;
+								}
+							} else {
+								meta_field["type"] = types.IndexOf(sprotomgr.Types[field.type]);
+							}
+							if (field.is_array) {
+								meta_field["array"] = true;
+								if (field.key != null) {
+									SprotoType t = sprotomgr.Types[field.type];
+									SprotoField f = t.fields[field.key];
+									meta_field["key"] = f.tag;
+								}
+							}
+							meta_fields.Add(meta_field);
+						}
+						meta_type["fields"] = meta_fields;
+					}
+					meta_types.Add(meta_type);
+				}
+				group["type"] = meta_types;
+			}
+			if (sprotomgr.Protocols.Count != 0) {
+				// make result stable
+				List<SprotoProtocol> protocols = new List<SprotoProtocol>(sprotomgr.Protocols.Values);
+				protocols.Sort(delegate(SprotoProtocol lhs,SprotoProtocol rhs) {
+					return lhs.tag < rhs.tag ? -1 : 1;
+				});
+				List<SprotoObject> meta_protocols = new List<SprotoObject>();
+				foreach (SprotoProtocol protocol in protocols) {
+					SprotoObject meta_protocol = meta.NewSprotoObject("protocol");
+					meta_protocol["name"] = protocol.name;
+					meta_protocol["tag"] = protocol.tag;
+					if (protocol.request != null) {
+						meta_protocol["request"] = types.IndexOf(sprotomgr.Types[protocol.request]);
+					}
+					if (protocol.response != null) {
+						meta_protocol["response"] = types.IndexOf(sprotomgr.Types[protocol.response]);
+					} else {
+						meta_protocol["confirm"] = true;
+					}
+					meta_protocols.Add(meta_protocol);
+				}
+				group["protocol"] = meta_protocols;
+			}
+			SprotoStream writer = new SprotoStream();
+			meta.Encode(group,writer);
+			byte[] result = new byte[writer.Position];
+			for (int i=0; i<writer.Position; i++) {
+				result[i] = writer.Buffer[i];
+			}
+			return result;
 		}
 	}
 }

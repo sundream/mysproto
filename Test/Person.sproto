@@ -3,6 +3,7 @@
 	age 1 : integer
 	marital 2 : boolean
 	children 3 : *Person
+	data 4 : Data
 }
 
 .Data {

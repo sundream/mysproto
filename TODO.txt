@@ -1,2 +1,1 @@
-1. support parse from sproto binary
-2. support Default API?
+1. support Default API?

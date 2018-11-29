@@ -8,6 +8,7 @@ namespace TestSproto {
 			TestSprotoCodec.Run();
 			TestSprotoPacker.Run();
 			TestSprotoRpc.Run();
+			TestSprotoParser.Run();
 			SimpleExample.Run();
 			SprotoBenchMark.Run();
 		}

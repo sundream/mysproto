@@ -83,9 +83,11 @@ get 1 {
 ```
 
 ## C# API
-* `SprotoMgr SprotoParser.Parse(string proto)` create a sprotomgr by proto string
-* `SprotoMgr SprotoParser.ParseFile(string filename)` create a sprotomgr by proto file
-* `SprotoMgr SprotoParser.ParseFile(List<string> filenames)` create a sprotomgr by proto file list
+* `SprotoMgr SprotoParser.Parse(string proto,string filename="=text")` create a sprotomgr by proto string(encoding in utf-8)
+* `SprotoMgr SprotoParser.ParseFile(string filename)` create a sprotomgr by proto file(encoding in utf-8)
+* `SprotoMgr SprotoParser.ParseFromBinary(byte[] bytes,int length)` create a sprotomgr from binary proto
+* `SprotoMgr SprotoParser.ParseFromBinaryFile(string filename)` create a sprotomgr from binary proto file
+* `byte[] SprotoParser.DumpToBinary(SprotoMgr sprotomgr)` dump a sprotomgr to binary proto
 * `SprotoObject SprotoMgr.NewSprotoObject(string typename,object val=null)` create a SprotoObject by typename,we can set field like dict later
 * `SprotoStream SprotoMgr.Encode(SprotoObject obj,SprotoStream writer=null)` encode a SprotoObject
 * `SprotoObject SprotoMgr.Decode(string typename,SprotoStream reader)` decode to a SprotoObject

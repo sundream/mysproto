@@ -19,6 +19,12 @@ namespace Sproto {
 			this.val = val;
 		}
 
+		public bool Has(string fieldname) {
+			if (this.fields.ContainsKey(fieldname))
+				return true;
+			return false;
+		}
+
 		public SprotoObject Get(string fieldname) {
 			SprotoObject value;
 			if (!this.fields.TryGetValue(fieldname,out value))

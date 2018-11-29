@@ -14,14 +14,24 @@ namespace TestSproto {
 			obj["name"] = "Alice";
 			obj["age"] = 13;
 			obj["marital"] = false;
+			SprotoObject data = sproto.NewSprotoObject("Data");
+			data["number"] = 1;
+			obj["data"] = data;
 
 			byte[] expect_bytes = {
-				0x03,0x00,
+				0x05,0x00,
 				0x00,0x00,
 				0x1c,0x00,
 				0x02,0x00,
+				0x01,0x00,	// (skip id=3)
+				0x00,0x00,
 				0x05,0x00,0x00,0x00,
 				0x41,0x6c,0x69,0x63,0x65,
+				// Data field
+				0x06,0x00,0x00,0x00,
+				0x02,0x00,
+				0x03,0x00,
+				0x04,0x00,
 			};
 
 			SprotoStream encode_stream = sproto.Encode(obj);
@@ -45,6 +55,8 @@ namespace TestSproto {
 			SprotoHelper.Assert(decode_obj["age"] == 13);
 			SprotoHelper.Assert(decode_obj["marital"] == false);
 			SprotoHelper.Assert(decode_obj["children"] == null);
+			SprotoObject decode_data = decode_obj["data"];
+			SprotoHelper.Assert(decode_data["number"] == 1);
 
 			Console.WriteLine("=====example 2=====");
 			obj = sproto.NewSprotoObject("Person");
