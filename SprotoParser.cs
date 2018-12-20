@@ -555,11 +555,16 @@ namespace Sproto {
 
 		public static SprotoMgr ParseFromBinaryFile(string filename) {
 			FileStream stream = new FileStream(filename,FileMode.Open,FileAccess.Read);
-			MemoryStream ms = new MemoryStream();
-			stream.CopyTo(ms);
-			byte[] bytes = ms.GetBuffer();
-			int length = (int)ms.Length;
+			SprotoStream ms = new SprotoStream();
+			byte[] buf = new byte[1024];
+			int len = stream.Read(buf,0,buf.Length);
+			while (len > 0) {
+				ms.Write(buf,0,buf.Length);
+				len = stream.Read(buf,0,buf.Length);
+			}
 			stream.Close();
+			byte[] bytes = ms.Buffer;
+			int length = (int)ms.Position;
 			return SprotoParser.ParseFromBinary(bytes,length);
 		}
 

@@ -112,8 +112,8 @@ In my i5-3210 @2.5GHz CPU, the benchmark is below:
 i test in ubuntu/mac
 1. compile: mcs *.cs Test/*.cs
 2. run: ls *.exe | xargs mono
-if you want to use in unity,see [TcpClientSocket](https://github.com/sundream/TcpClientSocket)
 ```
+* if you want to use in unity,see [TcpClientSocket](https://github.com/sundream/TcpClientSocket)
 
 ## See Also
 * [sproto](https://github.com/cloudwu/sproto)
